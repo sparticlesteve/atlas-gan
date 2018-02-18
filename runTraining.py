@@ -39,9 +39,8 @@ def parse_args():
     add_arg('--batch-size', type=int, default=64)
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
-    #add_arg('--n-valid', type=int, help='Maximum number of validation samples')
     #add_arg('--hidden-dim', type=int, default=20)
-    #add_arg('--cuda', action='store_true')
+    add_arg('--cuda', action='store_true')
     return parser.parse_args()
 
 def main():
@@ -93,6 +92,14 @@ def main():
     real_labels = Variable(torch.ones(args.batch_size))
     fake_labels = Variable(torch.zeros(args.batch_size))
 
+    # Offload to GPU
+    if args.cuda:
+        discriminator = discriminator.cuda()
+        generator = generator.cuda()
+        loss_func = loss_func.cuda()
+        real_labels = real_labels.cuda()
+        fake_labels = fake_labels.cuda()
+
     # Loop over epochs
     for i in range(args.n_epochs):
         logging.info('Epoch %i' % i)
@@ -109,11 +116,15 @@ def main():
             # Train discriminator with real samples
             discriminator.zero_grad()
             batch_real = Variable(torch.from_numpy(batch_data))
+            if args.cuda:
+                batch_real = batch_real.cuda()
             d_output_real = discriminator(batch_real)
             d_loss_real = loss_func(d_output_real, d_labels_real)
             d_loss_real.backward()
             # Train discriminator with fake generated samples
             batch_noise = Variable(torch.FloatTensor(args.batch_size, args.noise_dim, 1, 1).normal_(0, 1))
+            if args.cuda:
+                batch_noise = batch_noise.cuda()
             batch_fake = generator(batch_noise)
             d_output_fake = discriminator(batch_fake.detach())
             d_loss_fake = loss_func(d_output_fake, d_labels_fake)
@@ -175,7 +186,9 @@ def main():
             make_path = lambda s: os.path.join(args.output_dir, s)
             # Select a random subset of the last batch of generated data
             rand_idx = np.random.choice(np.arange(args.batch_size), args.n_save)
-            gen_samples[i] = batch_fake.data.numpy()[rand_idx][:, 0]
+            gen_samples[i] = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
+            #gen_samples[i] = batch_fake[rand_idx][:, 0].cpu().data.numpy()
+            #gen_samples[i] = batch_fake.data.numpy()[rand_idx][:, 0]
 
     logging.info('Finished training')
 
