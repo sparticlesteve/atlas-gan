@@ -185,7 +185,8 @@ def main():
         if args.output_dir is not None:
             make_path = lambda s: os.path.join(args.output_dir, s)
             # Select a random subset of the last batch of generated data
-            rand_idx = np.random.choice(np.arange(args.batch_size), args.n_save)
+            rand_idx = np.random.choice(np.arange(args.batch_size),
+                                        args.n_save, replace=False)
             gen_samples[i] = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
             #gen_samples[i] = batch_fake[rand_idx][:, 0].cpu().data.numpy()
             #gen_samples[i] = batch_fake.data.numpy()[rand_idx][:, 0]
