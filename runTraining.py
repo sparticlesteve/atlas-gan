@@ -26,7 +26,7 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('runTraining.py')
     add_arg = parser.add_argument
-    add_arg('--input-data', default='/project/projectdirs/dasrepo/atlas_rpv_susy/cosmoGAN/networks/signal_caloimages.npy')
+    add_arg('--input-data', default='/data0/users/sfarrell/atlas_rpv_data/RPV10_1600_250_01.npz')
     add_arg('--output-dir')
     add_arg('--noise-dim', type=int, default=64, help='Size of the noise vector')
     add_arg('--flip-labels', type=float, default=0, help='Probability to flip labels in discriminator updates')
@@ -56,7 +56,7 @@ def main():
         logging.info('Command line config: %s' % args)
 
     # Load the data
-    data = np.load(args.input_data, mmap_mode='r')
+    data = np.load(args.input_data, mmap_mode='r')['hist']
     logging.info('Loaded data with shape: %s' % (data.shape,))
 
     # Instantiate the model
