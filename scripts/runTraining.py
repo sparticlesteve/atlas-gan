@@ -20,7 +20,7 @@ import torch
 from torch.autograd import Variable
 
 # Local
-import gan
+from atlasgan import gan
 
 def parse_args():
     """Parse command line arguments."""
