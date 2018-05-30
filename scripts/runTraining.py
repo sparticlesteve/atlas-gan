@@ -29,7 +29,8 @@ def parse_args():
     add_arg('--input-data', default='/data0/users/sfarrell/atlas_rpv_data/RPV10_1600_250_01.npz')
     add_arg('--output-dir')
     add_arg('--noise-dim', type=int, default=64, help='Size of the noise vector')
-    add_arg('--flip-labels', type=float, default=0, help='Probability to flip labels in discriminator updates')
+    add_arg('--flip-labels', type=float, default=0,
+            help='Probability to flip labels in discriminator updates')
     add_arg('--lr', type=float, default=0.0002, help='Learning rate')
     add_arg('--beta1', type=float, default=0.5, help='Adam beta1 parameter')
     add_arg('--n-train', type=int, help='Maximum number of training samples')
@@ -149,32 +150,6 @@ def main():
             # Save losses
             dis_losses[i] += (d_loss.mean() / n_batches)
             gen_losses[i] += (g_loss.mean() / n_batches)
-
-            ## Zero the gradients
-            #discriminator.zero_grad()
-            #generator.zero_grad()
-            ## Prepare batch for model input
-            #batch_data = data[j:j+args.batch_size][:, None].astype(np.float32)
-            #batch_real = Variable(torch.from_numpy(batch_data))
-            #real_labels = Variable(torch.ones(args.batch_size))
-            ## Generate some fake samples
-            #batch_noise = Variable(torch.FloatTensor(args.batch_size, args.noise_dim, 1, 1).normal_(0, 1))
-            #batch_fake = generator(batch_noise)
-            #fake_labels = Variable(torch.zeros(args.batch_size))
-            ## Apply the discriminator
-            #output_real = discriminator(batch_real)
-            #output_fake = discriminator(batch_fake.detach())
-            ## Update the discriminator
-            #d_loss_real = loss_func(output_real, real_labels)
-            #d_loss_fake = loss_func(output_fake, fake_labels)
-            #d_loss = d_loss_real + d_loss_fake
-            #d_loss.backward()
-            #d_optimizer.step()
-            ## Compute output on fake samples again for generator update
-            #output_fake = discriminator(batch_fake)
-            #g_loss = loss_func(output_fake, real_labels)
-            #g_loss.backward()
-            #g_optimizer.step()
 
         logging.info('Avg discriminator real output: %.4f' % dis_outputs_real[i])
         logging.info('Avg discriminator fake output: %.4f' % dis_outputs_fake[i])
