@@ -63,12 +63,12 @@ def main():
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
     # Instantiate the trainer
-    trainer = DCGANTrainer(noise_dim=args.noise_dim, lr=args.lr, beta1=args.beta1)
+    trainer = DCGANTrainer(noise_dim=args.noise_dim, lr=args.lr, beta1=args.beta1,
+                           output_dir=args.output_dir, cuda=args.cuda)
 
     # Run the training
     trainer.train(data_loader, n_epochs=args.n_epochs,
-                  flip_labels=args.flip_labels, n_save=args.n_save,
-                  output_dir=args.output_dir, cuda=args.cuda)
+                  flip_labels=args.flip_labels, n_save=args.n_save)
 
     # Drop to IPython interactive shell
     if args.interactive:
