@@ -31,6 +31,7 @@ class DCGANTrainer():
         self.logger = logging.getLogger(self.__class__.__name__)
         self.cuda = cuda
         self.output_dir = output_dir
+        self.summaries = {}
 
         # Instantiate the model
         self.noise_dim = noise_dim
@@ -58,21 +59,18 @@ class DCGANTrainer():
         """Wrap in pytorch Variable and move to device"""
         return self.to_device(Variable(x))
 
+    def save_summary(self, summaries):
+        """Save summary information"""
+        for (key, val) in summaries.items():
+            summary_vals = self.summaries.get(key, [])
+            self.summaries[key] = summary_vals + [val]
+
     def train(self, data_loader, n_epochs,
               flip_labels, n_save):
         """
         Run the model training.
         """
-        # Prepare training summary information
-        dis_outputs_real = np.zeros(n_epochs)
-        dis_outputs_fake = np.zeros(n_epochs)
-        dis_losses = np.zeros(n_epochs)
-        gen_losses = np.zeros(n_epochs)
-        gen_samples = np.zeros((n_epochs, n_save,
-                                data_loader.dataset[0].shape[1],
-                                data_loader.dataset[0].shape[2]))
-
-        # Finalize the training set
+        # Count full batches
         n_train = len(data_loader.dataset)
         n_batches = n_train // data_loader.batch_size
         n_samples = n_batches * data_loader.batch_size
@@ -90,6 +88,9 @@ class DCGANTrainer():
         # Loop over epochs
         for i in range(n_epochs):
             self.logger.info('Epoch %i' % i)
+
+            dis_output_real, dis_output_fake = 0, 0
+            dis_loss, gen_loss = 0, 0
 
             # Loop over batches
             for batch_data in data_loader:
@@ -132,17 +133,17 @@ class DCGANTrainer():
                 self.g_optimizer.step()
 
                 # Mean discriminator outputs
-                dis_outputs_real[i] += (d_output_real.mean() / n_batches)
-                dis_outputs_fake[i] += (d_output_fake.mean() / n_batches)
+                dis_output_real += (d_output_real.mean().data[0] / n_batches)
+                dis_output_fake += (d_output_fake.mean().data[0] / n_batches)
 
                 # Save losses
-                dis_losses[i] += (d_loss.mean() / n_batches)
-                gen_losses[i] += (g_loss.mean() / n_batches)
+                dis_loss += (d_loss.mean().data[0] / n_batches)
+                gen_loss += (g_loss.mean().data[0] / n_batches)
 
-            self.logger.info('Avg discriminator real output: %.4f' % dis_outputs_real[i])
-            self.logger.info('Avg discriminator fake output: %.4f' % dis_outputs_fake[i])
-            self.logger.info('Avg discriminator loss: %.4f' % dis_losses[i])
-            self.logger.info('Avg generator loss: %.4f' % gen_losses[i])
+            self.logger.info('Avg discriminator real output: %.4f' % dis_output_real)
+            self.logger.info('Avg discriminator fake output: %.4f' % dis_output_fake)
+            self.logger.info('Avg discriminator loss: %.4f' % dis_loss)
+            self.logger.info('Avg generator loss: %.4f' % gen_loss)
 
             # Save example generated data
             if self.output_dir is not None:
@@ -150,7 +151,15 @@ class DCGANTrainer():
                 # Select a random subset of the last batch of generated data
                 rand_idx = np.random.choice(np.arange(data_loader.batch_size),
                                             n_save, replace=False)
-                gen_samples[i] = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
+                gen_samples = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
+
+            # Testing summary writer
+            summary = dict(
+                epoch=i, dis_loss=dis_loss, gen_loss=gen_loss,
+                dis_output_real=dis_output_real, dis_output_fake=dis_output_fake,
+                gen_samples=gen_samples,
+            )
+            self.save_summary(summary)
 
         self.logger.info('Finished training')
 
@@ -163,14 +172,5 @@ class DCGANTrainer():
             torch.save(self.generator, make_path('generator.torch'))
             self.logger.info('Saving discriminator')
             torch.save(self.discriminator, make_path('discriminator.torch'))
-            # Save the average outputs
-            self.logger.info('Saving mean discriminator outputs')
-            np.save(make_path('dis_outputs_real'), dis_outputs_real)
-            np.save(make_path('dis_outputs_fake'), dis_outputs_fake)
-            # Save the losses
-            self.logger.info('Saving training losses')
-            np.save(make_path('dis_losses'), dis_losses)
-            np.save(make_path('gen_losses'), gen_losses)
-            # Save the example generated images
-            self.logger.info('Saving generated samples')
-            np.save(make_path('gen_samples'), gen_samples)
+            # Save the combined summary information
+            np.savez(make_path('summaries'), **self.summaries)
