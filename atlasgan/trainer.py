@@ -65,6 +65,18 @@ class DCGANTrainer():
             summary_vals = self.summaries.get(key, [])
             self.summaries[key] = summary_vals + [val]
 
+    # TODO: write resume_checkpoint method (when actually needed)
+    def write_checkpoint(self, checkpoint_id, generator, discriminator):
+        """Write a checkpoint for the model"""
+        assert self.output_dir is not None
+        checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
+        checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
+        if not os.path.exists(checkpoint_dir):
+            os.mkdir(checkpoint_dir)
+        torch.save(dict(generator=generator.state_dict(),
+                        discriminator=discriminator.state_dict()),
+                   os.path.join(checkpoint_dir, checkpoint_file))
+
     def train(self, data_loader, n_epochs,
               flip_labels, n_save):
         """
@@ -145,15 +157,12 @@ class DCGANTrainer():
             self.logger.info('Avg discriminator loss: %.4f' % dis_loss)
             self.logger.info('Avg generator loss: %.4f' % gen_loss)
 
-            # Save example generated data
-            if self.output_dir is not None:
-                make_path = lambda s: os.path.join(self.output_dir, s)
-                # Select a random subset of the last batch of generated data
-                rand_idx = np.random.choice(np.arange(data_loader.batch_size),
-                                            n_save, replace=False)
-                gen_samples = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
+            # Select a random subset of the last batch of generated data
+            rand_idx = np.random.choice(np.arange(data_loader.batch_size),
+                                        n_save, replace=False)
+            gen_samples = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
 
-            # Testing summary writer
+            # Fill summary information
             summary = dict(
                 epoch=i, dis_loss=dis_loss, gen_loss=gen_loss,
                 dis_output_real=dis_output_real, dis_output_fake=dis_output_fake,
@@ -161,16 +170,14 @@ class DCGANTrainer():
             )
             self.save_summary(summary)
 
+            # Model checkpointing
+            self.write_checkpoint(checkpoint_id=i,
+                                  generator=self.generator,
+                                  discriminator=self.discriminator)
+
         self.logger.info('Finished training')
 
-        # Save outputs
+        # Save the combined summary information
         if self.output_dir is not None:
-            self.logger.info('Saving results to %s' % self.output_dir)
-            make_path = lambda s: os.path.join(self.output_dir, s)
-            # Save the models
-            self.logger.info('Saving generator')
-            torch.save(self.generator, make_path('generator.torch'))
-            self.logger.info('Saving discriminator')
-            torch.save(self.discriminator, make_path('discriminator.torch'))
-            # Save the combined summary information
-            np.savez(make_path('summaries'), **self.summaries)
+            self.logger.info('Saving summaries to %s' % self.output_dir)
+            np.savez(os.path.join(self.output_dir, 'summaries.npz'), **self.summaries)
