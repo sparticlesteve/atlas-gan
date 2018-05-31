@@ -18,8 +18,10 @@ import logging
 import numpy as np
 import torch
 from torch.autograd import Variable
+from torch.utils.data import TensorDataset, DataLoader
 
 # Local
+from atlasgan.dataset import RPVImages
 from atlasgan.trainer import DCGANTrainer
 
 def parse_args():
@@ -56,16 +58,15 @@ def main():
         logging.info('Command line config: %s' % args)
 
     # Load the data
-    data = np.load(args.input_data, mmap_mode='r')['hist']
-    if args.n_train is not None and args.n_train > 0:
-        data = data[:args.n_train]
-    logging.info('Loaded data with shape: %s' % (data.shape,))
+    dataset = RPVImages(args.input_data, n_samples=args.n_train)
+    data_loader = DataLoader(dataset, batch_size=args.batch_size)
+    logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
     # Instantiate the trainer
     trainer = DCGANTrainer(noise_dim=args.noise_dim, lr=args.lr, beta1=args.beta1)
 
     # Run the training
-    trainer.train(data, n_epochs=args.n_epochs, batch_size=args.batch_size,
+    trainer.train(data_loader, n_epochs=args.n_epochs,
                   flip_labels=args.flip_labels, n_save=args.n_save,
                   output_dir=args.output_dir, cuda=args.cuda)
 

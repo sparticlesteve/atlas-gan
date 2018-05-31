@@ -38,35 +38,41 @@ class DCGANTrainer():
                                             betas=(beta1, beta2))
         self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=lr,
                                             betas=(beta1, beta2))
-        self.logger.info('Generator module: \n%s\nParameters: %i' %
-                         (self.generator, sum(p.numel() for p in self.generator.parameters())))
-        self.logger.info('Discriminator module: \n%s\nParameters: %i' %
-                         (self.discriminator, sum(p.numel() for p in self.discriminator.parameters())))
+        self.logger.info(
+            'Generator module: \n%s\nParameters: %i' %
+            (self.generator, sum(p.numel() for p in self.generator.parameters()))
+        )
+        self.logger.info(
+            'Discriminator module: \n%s\nParameters: %i' %
+            (self.discriminator, sum(p.numel() for p in self.discriminator.parameters()))
+        )
 
-    def train(self, data, n_epochs, batch_size,
+    def train(self, data_loader, n_epochs,
               flip_labels, n_save,
               output_dir=None, cuda=False):
         """
         Run the model training.
         """
-    	# Prepare training summary information
-    	dis_outputs_real = np.zeros(n_epochs)
-    	dis_outputs_fake = np.zeros(n_epochs)
-    	dis_losses = np.zeros(n_epochs)
-    	gen_losses = np.zeros(n_epochs)
-    	gen_samples = np.zeros((n_epochs, n_save, data.shape[1], data.shape[2]))
+        # Prepare training summary information
+        dis_outputs_real = np.zeros(n_epochs)
+        dis_outputs_fake = np.zeros(n_epochs)
+        dis_losses = np.zeros(n_epochs)
+        gen_losses = np.zeros(n_epochs)
+        gen_samples = np.zeros((n_epochs, n_save,
+                                data_loader.dataset[0].shape[1],
+                                data_loader.dataset[0].shape[2]))
 
         # Finalize the training set
-        n_train = data.shape[0]
-        n_batches = n_train // batch_size
-        n_samples = n_batches * batch_size
-        batch_idxs = np.arange(0, n_samples, batch_size)
+        n_train = len(data_loader.dataset)
+        n_batches = n_train // data_loader.batch_size
+        n_samples = n_batches * data_loader.batch_size
+        #batch_idxs = np.arange(0, n_samples, batch_size)
         self.logger.info('Training samples: %i' % n_samples)
         self.logger.info('Batches per epoch: %i' % n_batches)
 
         # Constants
-        real_labels = Variable(torch.ones(batch_size))
-        fake_labels = Variable(torch.zeros(batch_size))
+        real_labels = Variable(torch.ones(data_loader.batch_size))
+        fake_labels = Variable(torch.zeros(data_loader.batch_size))
 
         # Offload to GPU
         if cuda:
@@ -81,8 +87,11 @@ class DCGANTrainer():
             self.logger.info('Epoch %i' % i)
 
             # Loop over batches
-            for j in batch_idxs:
-                batch_data = data[j:j+batch_size][:, None].astype(np.float32)
+            for batch_data in data_loader:
+
+                # Skip partial batches
+                if batch_data.size(0) != data_loader.batch_size:
+                    continue
 
                 # Label flipping for discriminator training
                 flip = (np.random.random_sample() < flip_labels)
@@ -91,7 +100,7 @@ class DCGANTrainer():
 
                 # Train discriminator with real samples
                 self.discriminator.zero_grad()
-                batch_real = Variable(torch.from_numpy(batch_data))
+                batch_real = Variable(batch_data)
                 if cuda:
                     batch_real = batch_real.cuda()
                 d_output_real = self.discriminator(batch_real)
@@ -99,7 +108,7 @@ class DCGANTrainer():
                 d_loss_real.backward()
                 # Train discriminator with fake generated samples
                 batch_noise = Variable(
-                    torch.FloatTensor(batch_size, self.noise_dim, 1, 1)
+                    torch.FloatTensor(data_loader.batch_size, self.noise_dim, 1, 1)
                     .normal_(0, 1))
                 if cuda:
                     batch_noise = batch_noise.cuda()
@@ -137,7 +146,7 @@ class DCGANTrainer():
             if output_dir is not None:
                 make_path = lambda s: os.path.join(output_dir, s)
                 # Select a random subset of the last batch of generated data
-                rand_idx = np.random.choice(np.arange(batch_size),
+                rand_idx = np.random.choice(np.arange(data_loader.batch_size),
                                             n_save, replace=False)
                 gen_samples[i] = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
 
