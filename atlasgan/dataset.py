@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+# TODO: add the theory mass parameters for conditioning
 class RPVImages(Dataset):
     """Dataset wrapping RPV image tensors."""
     def __init__(self, input_file, n_samples=None, from_back=False):
@@ -15,8 +16,6 @@ class RPVImages(Dataset):
             fdata = f['hist']
             if n_samples is not None and n_samples > 0:
                 self.data = torch.from_numpy(fdata[:n_samples, None].astype(np.float32))
-                #self.data = fdata[:n_samples].copy()
-                #del fdata
             else:
                 self.data = torch.from_numpy(fdata[:, None]).astype(np.float32)
     
