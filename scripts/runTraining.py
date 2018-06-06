@@ -58,7 +58,8 @@ def main():
         logging.info('Command line config: %s' % args)
 
     # Load the data
-    dataset = RPVImages(args.input_data, n_samples=args.n_train)
+    scale = 6072947 #FIXME
+    dataset = RPVImages(args.input_data, n_samples=args.n_train, scale=scale)
     data_loader = DataLoader(dataset, batch_size=args.batch_size)
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
