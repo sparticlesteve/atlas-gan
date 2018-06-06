@@ -27,8 +27,6 @@ def reconstruct_jets(image, eta_range=(-2.5, 2.5), phi_range=(-np.pi, np.pi)):
     # Take bin centers as eta, phi coordinates
     eta = (eta_edges[1:] + eta_edges[:-1]) / 2
     phi = (phi_edges[1:] + phi_edges[:-1]) / 2
-    #eta = np.linspace(*eta_range, bins + 1)[:-1] + (eta_max - eta_min) / (2 * bins)
-    #phi = np.linspace(*phi_range, bins + 1)[:-1] + (phi_max - phi_min) / (2 * bins)
     X, Y = np.meshgrid(eta, phi)
 
     clusters = np.zeros(eta.shape[0] * phi.shape[0], dtype=DTYPE_PTEPM)
@@ -37,7 +35,6 @@ def reconstruct_jets(image, eta_range=(-2.5, 2.5), phi_range=(-np.pi, np.pi)):
     clusters['eta'] = X.ravel()
     clusters['phi'] = Y.ravel()
     clusters['pT'] = clusters['pT'] / np.cosh(clusters['eta'])
-    #clusters['pT']=6072947*clusters['pT']/np.cosh(clusters['eta'])
     event = clusters[clusters['pT']>100]
     sequence = cluster(event, R=1.0, p=-1)
     jets = sequence.inclusive_jets(ptmin=200000)
