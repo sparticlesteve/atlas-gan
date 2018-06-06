@@ -64,4 +64,6 @@ def compute_physics_variables(images):
     ev_groups = reco_jets.groupby('event')
     nJet = ev_groups.size()
     sumMass = ev_groups.apply(lambda j: j.m.sum())
-    return dict(nJet=nJet, sumMass=sumMass)
+    return dict(nJet=nJet, sumMass=sumMass,
+                jetPt=reco_jets.pt, jetEta=reco_jets.eta,
+                jetPhi=reco_jets.phi)
