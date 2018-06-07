@@ -77,22 +77,79 @@ class DCGANTrainer():
                         discriminator=discriminator.state_dict()),
                    os.path.join(checkpoint_dir, checkpoint_file))
 
-    def train(self, data_loader, n_epochs,
-              flip_labels, n_save):
-        """
-        Run the model training.
-        """
-        # Count full batches
-        n_train = len(data_loader.dataset)
-        n_batches = n_train // data_loader.batch_size
-        n_samples = n_batches * data_loader.batch_size
-        self.logger.info('Training samples: %i' % n_samples)
-        self.logger.info('Batches per epoch: %i' % n_batches)
+    def train_epoch(self, data_loader, flip_labels, n_save):
+        """Train for one epoch"""
+        self.generator.train()
+        self.discriminator.train()
+
+        # Compute number of batches
+        n_batches = len(data_loader.dataset) // data_loader.batch_size
+
+        # Initialize training summary information
+        summary = dict(d_train_loss=0, g_train_loss=0,
+                       d_train_output_real=0, d_train_output_fake=0)
 
         # Constants
         real_labels = self.make_var(torch.ones(data_loader.batch_size))
         fake_labels = self.make_var(torch.zeros(data_loader.batch_size))
 
+        # Loop over training batches
+        for batch_data in data_loader:
+
+            # Skip partial batches
+            batch_size = batch_data.size(0)
+            if batch_size != data_loader.batch_size:
+                continue
+
+            # Label flipping for discriminator training
+            flip = (np.random.random_sample() < flip_labels)
+            d_labels_real = fake_labels if flip else real_labels
+            d_labels_fake = real_labels if flip else fake_labels
+
+            # Train discriminator with real samples
+            self.discriminator.zero_grad()
+            batch_real = self.make_var(batch_data)
+            d_output_real = self.discriminator(batch_real)
+            d_loss_real = self.loss_func(d_output_real, d_labels_real)
+            d_loss_real.backward()
+            # Train discriminator with fake generated samples
+            batch_noise = self.make_var(
+                torch.FloatTensor(batch_size, self.noise_dim, 1, 1)
+                .normal_(0, 1))
+            batch_fake = self.generator(batch_noise)
+            d_output_fake = self.discriminator(batch_fake.detach())
+            d_loss_fake = self.loss_func(d_output_fake, d_labels_fake)
+            d_loss_fake.backward()
+            # Update discriminator parameters
+            d_loss = (d_loss_real + d_loss_fake) / 2
+            self.d_optimizer.step()
+
+            # Train generator to fool discriminator
+            self.generator.zero_grad()
+            g_output_fake = self.discriminator(batch_fake)
+            # We use 'real' labels for generator cost
+            g_loss = self.loss_func(g_output_fake, real_labels)
+            g_loss.backward()
+            # Update generator parameters
+            self.g_optimizer.step()
+
+            # Update mean discriminator output summary
+            summary['d_train_output_real'] += (d_output_real.mean().data[0] / n_batches)
+            summary['d_train_output_fake'] += (d_output_fake.mean().data[0] / n_batches)
+
+            # Update loss summary
+            summary['d_train_loss'] += (d_loss.mean().data[0] / n_batches)
+            summary['g_train_loss'] += (g_loss.mean().data[0] / n_batches)
+
+        # Select a random subset of the last batch of generated data
+        rand_idx = np.random.choice(np.arange(data_loader.batch_size),
+                                    n_save, replace=False)
+        summary['gen_samples'] = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
+
+        return summary
+
+    def train(self, data_loader, n_epochs, flip_labels, n_save):
+        """Run the model training"""
         # Offload to GPU
         self.discriminator = self.to_device(self.discriminator)
         self.generator = self.to_device(self.generator)
@@ -101,73 +158,17 @@ class DCGANTrainer():
         for i in range(n_epochs):
             self.logger.info('Epoch %i' % i)
 
-            dis_output_real, dis_output_fake = 0, 0
-            dis_loss, gen_loss = 0, 0
+            # Prepare summary information
+            summary = dict(epoch=i)
 
-            # Loop over batches
-            for batch_data in data_loader:
+            # Train on this epoch
+            summary.update(self.train_epoch(data_loader, flip_labels, n_save))
+            self.logger.info('Avg discriminator real output: %.4f' % summary['d_train_output_real'])
+            self.logger.info('Avg discriminator fake output: %.4f' % summary['d_train_output_fake'])
+            self.logger.info('Avg discriminator loss: %.4f' % summary['d_train_loss'])
+            self.logger.info('Avg generator loss: %.4f' % summary['g_train_loss'])
 
-                # Skip partial batches
-                batch_size = batch_data.size(0)
-                if batch_size != data_loader.batch_size:
-                    continue
-
-                # Label flipping for discriminator training
-                flip = (np.random.random_sample() < flip_labels)
-                d_labels_real = fake_labels if flip else real_labels
-                d_labels_fake = real_labels if flip else fake_labels
-
-                # Train discriminator with real samples
-                self.discriminator.zero_grad()
-                batch_real = self.make_var(batch_data)
-                d_output_real = self.discriminator(batch_real)
-                d_loss_real = self.loss_func(d_output_real, d_labels_real)
-                d_loss_real.backward()
-                # Train discriminator with fake generated samples
-                batch_noise = self.make_var(
-                    torch.FloatTensor(batch_size, self.noise_dim, 1, 1)
-                    .normal_(0, 1))
-                batch_fake = self.generator(batch_noise)
-                d_output_fake = self.discriminator(batch_fake.detach())
-                d_loss_fake = self.loss_func(d_output_fake, d_labels_fake)
-                d_loss_fake.backward()
-                # Update discriminator parameters
-                d_loss = (d_loss_real + d_loss_fake) / 2
-                self.d_optimizer.step()
-
-                # Train generator to fool discriminator
-                self.generator.zero_grad()
-                g_output_fake = self.discriminator(batch_fake)
-                # We use 'real' labels for generator cost
-                g_loss = self.loss_func(g_output_fake, real_labels)
-                g_loss.backward()
-                # Update generator parameters
-                self.g_optimizer.step()
-
-                # Mean discriminator outputs
-                dis_output_real += (d_output_real.mean().data[0] / n_batches)
-                dis_output_fake += (d_output_fake.mean().data[0] / n_batches)
-
-                # Save losses
-                dis_loss += (d_loss.mean().data[0] / n_batches)
-                gen_loss += (g_loss.mean().data[0] / n_batches)
-
-            self.logger.info('Avg discriminator real output: %.4f' % dis_output_real)
-            self.logger.info('Avg discriminator fake output: %.4f' % dis_output_fake)
-            self.logger.info('Avg discriminator loss: %.4f' % dis_loss)
-            self.logger.info('Avg generator loss: %.4f' % gen_loss)
-
-            # Select a random subset of the last batch of generated data
-            rand_idx = np.random.choice(np.arange(data_loader.batch_size),
-                                        n_save, replace=False)
-            gen_samples = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
-
-            # Fill summary information
-            summary = dict(
-                epoch=i, dis_loss=dis_loss, gen_loss=gen_loss,
-                dis_output_real=dis_output_real, dis_output_fake=dis_output_fake,
-                gen_samples=gen_samples,
-            )
+            # Save summary information
             self.save_summary(summary)
 
             # Model checkpointing
