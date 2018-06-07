@@ -10,6 +10,16 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+def transform_data(x, scale):
+    """Standard transform of the data for the models"""
+    return x / scale
+
+def inverse_transform_data(x, scale, threshold):
+    """Undo the standard transform"""
+    x = x * scale
+    x[x < threshold] = 0
+    return x
+
 # TODO: add the theory mass parameters for conditioning
 class RPVImages(Dataset):
     """Dataset wrapping RPV image tensors."""
@@ -23,7 +33,7 @@ class RPVImages(Dataset):
             else:
                 self.data = torch.from_numpy(fdata[:, None]).astype(np.float32)
         if scale is not None:
-            self.data /= scale
+            self.data = transform_data(self.data, scale)
     
     def __getitem__(self, index):
         return self.data[index]
