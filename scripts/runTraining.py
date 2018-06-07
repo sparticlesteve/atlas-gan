@@ -39,6 +39,8 @@ def parse_args():
     add_arg('--n-epochs', type=int, default=1)
     add_arg('--n-save', type=int, default=8,
             help='Number of example generated images to save to output-dir after every epoch.')
+    add_arg('--image-norm', type=float, default=4e6, #6072947
+            help='Normalization factor for the image data')
     add_arg('--batch-size', type=int, default=64)
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
@@ -58,8 +60,7 @@ def main():
         logging.info('Command line config: %s' % args)
 
     # Load the data
-    scale = 6072947 #FIXME
-    dataset = RPVImages(args.input_data, n_samples=args.n_train, scale=scale)
+    dataset = RPVImages(args.input_data, n_samples=args.n_train, scale=args.image_norm)
     data_loader = DataLoader(dataset, batch_size=args.batch_size)
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
