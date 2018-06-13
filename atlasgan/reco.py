@@ -54,11 +54,6 @@ def reconstruct_events(samples):
     return pd.concat([build_jets_dataframe(i, reconstruct_jets(samples[i]))
                       for i in range(samples.shape[0])])
 
-def threshold_images(x, thresh=0.00008):
-    x = x.copy()
-    x[x < thresh] = 0
-    return x
-
 def compute_physics_variables(images):
     reco_jets = reconstruct_events(images)
     ev_groups = reco_jets.groupby('event')
