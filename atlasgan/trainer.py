@@ -13,6 +13,7 @@ from torch.autograd import Variable
 
 # Locals
 import gan
+from dataset import generate_noise
 
 class DCGANTrainer():
     """
@@ -124,9 +125,7 @@ class DCGANTrainer():
                 d_loss_real = self.loss_func(d_output_real, d_labels_real)
                 d_loss_real.backward()
                 # Train discriminator with fake generated samples
-                batch_noise = self.make_var(
-                    torch.FloatTensor(batch_size, self.noise_dim, 1, 1)
-                    .normal_(0, 1))
+                batch_noise = self.make_var(generate_noise(batch_size, self.noise_dim)
                 batch_fake = self.generator(batch_noise)
                 d_output_fake = self.discriminator(batch_fake.detach())
                 d_loss_fake = self.loss_func(d_output_fake, d_labels_fake)

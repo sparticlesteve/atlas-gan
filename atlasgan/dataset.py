@@ -20,6 +20,10 @@ def inverse_transform_data(x, scale, threshold):
     x[x < threshold] = 0
     return x
 
+def generate_noise(n_samples, noise_dim):
+    """Generate the random noise tensor for the GAN"""
+    return torch.FloatTensor(n_samples, noise_dim, 1, 1).normal_(0, 1)
+
 # TODO: add the theory mass parameters for conditioning
 class RPVImages(Dataset):
     """Dataset wrapping RPV image tensors."""
