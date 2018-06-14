@@ -11,10 +11,10 @@ class Generator(nn.Module):
     Generator module for the GAN.
     """
 
-    def __init__(self, noise_dim, output_channels=1):
+    def __init__(self, noise_dim, output_channels=1, n_filters=16):
         super(Generator, self).__init__()
         # Number of filters in final generator layer
-        ngf = 16
+        ngf = n_filters
         # Construct the model as a sequence of layers
         self.network = nn.Sequential(
             nn.ConvTranspose2d(noise_dim, ngf * 8, 4, 1, 0, bias=False),
@@ -47,10 +47,10 @@ class Discriminator(nn.Module):
     Discriminator module for the GAN.
     """
 
-    def __init__(self, input_channels=1):
+    def __init__(self, input_channels=1, n_filters=16):
         super(Discriminator, self).__init__()
         # Number of initial filters of discriminator network
-        ndf = 16
+        ndf = n_filters
         self.network = nn.Sequential(
             # input is (nc) x 64 x 64
             nn.Conv2d(input_channels, ndf, 4, 2, 1, bias=False),
