@@ -10,6 +10,8 @@ Things still missing:
 
 # System
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 import os
 import argparse
 import logging
@@ -65,7 +67,8 @@ def main():
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
     # Instantiate the trainer
-    trainer = DCGANTrainer(noise_dim=args.noise_dim, lr=args.lr, beta1=args.beta1,
+    trainer = DCGANTrainer(noise_dim=args.noise_dim, lr=args.lr,
+                           beta1=args.beta1, threshold=500./args.image_norm,
                            output_dir=args.output_dir, cuda=args.cuda)
 
     # Run the training

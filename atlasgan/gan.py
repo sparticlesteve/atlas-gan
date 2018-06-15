@@ -11,7 +11,7 @@ class Generator(nn.Module):
     Generator module for the GAN.
     """
 
-    def __init__(self, noise_dim, output_channels=1, n_filters=16):
+    def __init__(self, noise_dim, output_channels=1, n_filters=16, threshold=0):
         super(Generator, self).__init__()
         # Number of filters in final generator layer
         ngf = n_filters
@@ -34,7 +34,8 @@ class Generator(nn.Module):
             nn.ReLU(True),
             # state size. (ngf) x 32 x 32
             nn.ConvTranspose2d(ngf, output_channels, 4, 2, 1, bias=False),
-            nn.Sigmoid()
+            nn.Sigmoid(),
+            nn.Threshold(threshold, 0)
             # state size. (nc) x 64 x 64
         )
 

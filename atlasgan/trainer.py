@@ -24,7 +24,7 @@ class DCGANTrainer():
     """
 
     def __init__(self, noise_dim, lr, beta1, beta2=0.999,
-                 cuda=False, output_dir=None):
+                 threshold=0, cuda=False, output_dir=None):
         """
         Construct the trainer.
         This builds the model, optimizers, etc.
@@ -36,7 +36,7 @@ class DCGANTrainer():
 
         # Instantiate the model
         self.noise_dim = noise_dim
-        self.generator = gan.Generator(noise_dim)
+        self.generator = gan.Generator(noise_dim, threshold=threshold)
         self.discriminator = gan.Discriminator()
         self.loss_func = torch.nn.BCELoss()
         self.g_optimizer = torch.optim.Adam(self.generator.parameters(), lr=lr,
