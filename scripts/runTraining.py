@@ -33,6 +33,8 @@ def parse_args():
     add_arg('--input-data', default='/data0/users/sfarrell/atlas_rpv_data/RPV10_1600_250_01.npz')
     add_arg('--output-dir')
     add_arg('--noise-dim', type=int, default=64, help='Size of the noise vector')
+    add_arg('--n-filters', type=int, default=16,
+            help='Number of initial filters in discriminator')
     add_arg('--flip-labels', type=float, default=0,
             help='Probability to flip labels in discriminator updates')
     add_arg('--lr', type=float, default=0.0002, help='Learning rate')
@@ -67,8 +69,9 @@ def main():
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
     # Instantiate the trainer
-    trainer = DCGANTrainer(noise_dim=args.noise_dim, lr=args.lr,
-                           beta1=args.beta1, threshold=500./args.image_norm,
+    trainer = DCGANTrainer(noise_dim=args.noise_dim, n_filters=args.n_filters,
+                           lr=args.lr, beta1=args.beta1,
+                           threshold=500./args.image_norm,
                            output_dir=args.output_dir, cuda=args.cuda)
 
     # Run the training

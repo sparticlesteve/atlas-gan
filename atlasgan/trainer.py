@@ -23,7 +23,7 @@ class DCGANTrainer():
     and impelemnts logging and checkpointing.
     """
 
-    def __init__(self, noise_dim, lr, beta1, beta2=0.999,
+    def __init__(self, noise_dim, n_filters, lr, beta1, beta2=0.999,
                  threshold=0, cuda=False, output_dir=None):
         """
         Construct the trainer.
@@ -36,8 +36,10 @@ class DCGANTrainer():
 
         # Instantiate the model
         self.noise_dim = noise_dim
-        self.generator = gan.Generator(noise_dim, threshold=threshold)
-        self.discriminator = gan.Discriminator()
+        self.generator = gan.Generator(noise_dim=noise_dim,
+                                       n_filters=n_filters,
+                                       threshold=threshold)
+        self.discriminator = gan.Discriminator(n_filters=n_filters)
         self.loss_func = torch.nn.BCELoss()
         self.g_optimizer = torch.optim.Adam(self.generator.parameters(), lr=lr,
                                             betas=(beta1, beta2))
