@@ -41,17 +41,19 @@ class DCGANTrainer():
                                        threshold=threshold)
         self.discriminator = gan.Discriminator(n_filters=n_filters)
         self.loss_func = torch.nn.BCELoss()
-        self.g_optimizer = torch.optim.Adam(self.generator.parameters(), lr=lr,
-                                            betas=(beta1, beta2))
-        self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(), lr=lr,
-                                            betas=(beta1, beta2))
+        self.g_optimizer = torch.optim.Adam(self.generator.parameters(),
+                                            lr=lr, betas=(beta1, beta2))
+        self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(),
+                                            lr=lr, betas=(beta1, beta2))
         self.logger.info(
             'Generator module: \n%s\nParameters: %i' %
-            (self.generator, sum(p.numel() for p in self.generator.parameters()))
+            (self.generator, sum(p.numel()
+             for p in self.generator.parameters()))
         )
         self.logger.info(
             'Discriminator module: \n%s\nParameters: %i' %
-            (self.discriminator, sum(p.numel() for p in self.discriminator.parameters()))
+            (self.discriminator, sum(p.numel()
+             for p in self.discriminator.parameters()))
         )
 
     def to_device(self, x):
