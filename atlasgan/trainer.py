@@ -141,12 +141,12 @@ class DCGANTrainer():
             self.g_optimizer.step()
 
             # Update mean discriminator output summary
-            summary['d_train_output_real'] += (d_output_real.mean().data[0] / n_batches)
-            summary['d_train_output_fake'] += (d_output_fake.mean().data[0] / n_batches)
+            summary['d_train_output_real'] += (d_output_real.mean().item() / n_batches)
+            summary['d_train_output_fake'] += (d_output_fake.mean().item() / n_batches)
 
             # Update loss summary
-            summary['d_train_loss'] += (d_loss.mean().data[0] / n_batches)
-            summary['g_train_loss'] += (g_loss.mean().data[0] / n_batches)
+            summary['d_train_loss'] += (d_loss.mean().item() / n_batches)
+            summary['g_train_loss'] += (g_loss.mean().item() / n_batches)
 
         # Select a random subset of the last batch of generated data
         rand_idx = np.random.choice(np.arange(data_loader.batch_size),
