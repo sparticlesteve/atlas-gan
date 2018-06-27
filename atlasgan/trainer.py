@@ -78,8 +78,8 @@ class DCGANTrainer():
         checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
         if not os.path.exists(checkpoint_dir):
             os.mkdir(checkpoint_dir)
-        torch.save(dict(generator=generator.state_dict(),
-                        discriminator=discriminator.state_dict()),
+        torch.save(dict(generator=generator.cpu().state_dict(),
+                        discriminator=discriminator.cpu().state_dict()),
                    os.path.join(checkpoint_dir, checkpoint_file))
 
     def train_epoch(self, data_loader, flip_labels, n_save):
