@@ -2,6 +2,10 @@
 Trainer code for the ATLAS DCGAN.
 """
 
+# Compatibility
+from __future__ import absolute_import
+from __future__ import division
+
 # System
 import os
 import logging
@@ -12,8 +16,8 @@ import torch
 from torch.autograd import Variable
 
 # Locals
-import gan
-from dataset import generate_noise
+from . import gan
+from .dataset import generate_noise
 
 class DCGANTrainer():
     """
