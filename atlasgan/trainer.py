@@ -8,6 +8,7 @@ from __future__ import division
 
 # System
 import os
+import json
 import logging
 
 # Externals
@@ -27,13 +28,18 @@ class DCGANTrainer():
     and impelemnts logging and checkpointing.
     """
 
-    def __init__(self, noise_dim, n_filters, lr, beta1, beta2=0.999,
-                 threshold=0, cuda=False, output_dir=None):
+    def __init__(self, noise_dim=64, n_filters=16,
+                 lr=0.0002, beta1=0.5, beta2=0.999,
+                 threshold=0, flip_rate=0,
+                 cuda=False, output_dir=None):
         """
         Construct the trainer.
         This builds the model, optimizers, etc.
         """
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.config = dict(noise_dim=noise_dim, n_filters=n_filters,
+                           lr=lr, beta1=beta1, beta2=beta2,
+                           threshold=threshold, flip_rate=flip_rate)
         self.cuda = cuda
         self.output_dir = output_dir
         self.summaries = {}
@@ -60,6 +66,10 @@ class DCGANTrainer():
              for p in self.discriminator.parameters()))
         )
 
+        # Write the configuration right away
+        if self.output_dir is not None:
+            self.write_config()
+
     def to_device(self, x):
         """Copy object to device"""
         return x.cuda() if self.cuda else x
@@ -74,6 +84,20 @@ class DCGANTrainer():
             summary_vals = self.summaries.get(key, [])
             self.summaries[key] = summary_vals + [val]
 
+    def write_summaries(self):
+        assert self.output_dir is not None
+        summary_file = os.path.join(self.output_dir, 'summaries.npz')
+        self.logger.info('Saving summaries to %s' % summary_file)
+        np.savez(summary_file, **self.summaries)
+
+    def write_config(self):
+        """Write the trainer config to the output directory"""
+        assert self.output_dir is not None
+        config_file = os.path.join(self.output_dir, 'config.json')
+        self.logger.info('Saving config to %s' % config_file)
+        with open(config_file, 'w') as f:
+            json.dump(self.config, f)
+
     # TODO: write resume_checkpoint method (when actually needed)
     def write_checkpoint(self, checkpoint_id, generator, discriminator):
         """Write a checkpoint for the model"""
@@ -86,7 +110,7 @@ class DCGANTrainer():
                         discriminator=discriminator.state_dict()),
                    os.path.join(checkpoint_dir, checkpoint_file))
 
-    def train_epoch(self, data_loader, flip_labels, n_save):
+    def train_epoch(self, data_loader, n_save):
         """Train for one epoch"""
         self.generator.train()
         self.discriminator.train()
@@ -111,7 +135,7 @@ class DCGANTrainer():
                 continue
 
             # Label flipping for discriminator training
-            flip = (np.random.random_sample() < flip_labels)
+            flip = (np.random.random_sample() < self.config['flip_rate'])
             d_labels_real = fake_labels if flip else real_labels
             d_labels_fake = real_labels if flip else fake_labels
 
@@ -155,7 +179,7 @@ class DCGANTrainer():
 
         return summary
 
-    def train(self, data_loader, n_epochs, flip_labels, n_save):
+    def train(self, data_loader, n_epochs, n_save):
         """Run the model training"""
         # Offload to GPU
         self.discriminator = self.to_device(self.discriminator)
@@ -169,7 +193,7 @@ class DCGANTrainer():
             summary = dict(epoch=i)
 
             # Train on this epoch
-            summary.update(self.train_epoch(data_loader, flip_labels, n_save))
+            summary.update(self.train_epoch(data_loader, n_save))
             self.logger.info('Avg discriminator real output: %.4f' % summary['d_train_output_real'])
             self.logger.info('Avg discriminator fake output: %.4f' % summary['d_train_output_fake'])
             self.logger.info('Avg discriminator loss: %.4f' % summary['d_train_loss'])
@@ -187,5 +211,6 @@ class DCGANTrainer():
 
         # Save the combined summary information
         if self.output_dir is not None:
-            self.logger.info('Saving summaries to %s' % self.output_dir)
-            np.savez(os.path.join(self.output_dir, 'summaries.npz'), **self.summaries)
+            self.write_summaries()
+            #self.logger.info('Saving summaries to %s' % self.output_dir)
+            #np.savez(os.path.join(self.output_dir, 'summaries.npz'), **self.summaries)
