@@ -70,13 +70,12 @@ def main():
 
     # Instantiate the trainer
     trainer = DCGANTrainer(noise_dim=args.noise_dim, n_filters=args.n_filters,
-                           lr=args.lr, beta1=args.beta1,
+                           lr=args.lr, beta1=args.beta1, flip_rate=args.flip_labels,
                            threshold=500./args.image_norm,
                            output_dir=args.output_dir, cuda=args.cuda)
 
     # Run the training
-    trainer.train(data_loader, n_epochs=args.n_epochs,
-                  flip_labels=args.flip_labels, n_save=args.n_save)
+    trainer.train(data_loader, n_epochs=args.n_epochs, n_save=args.n_save)
 
     # Drop to IPython interactive shell
     if args.interactive:
