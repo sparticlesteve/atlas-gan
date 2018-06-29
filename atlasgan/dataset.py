@@ -14,8 +14,8 @@ def transform_data(x, scale):
     """Standard transform of the data for the models"""
     return x / scale
 
-def inverse_transform_data(x, scale, threshold):
-    """Undo the standard transform"""
+def inverse_transform_data(x, scale, threshold=0):
+    """Undo the standard transform; shouldn't need threshold anymore"""
     x = x * scale
     x[x < threshold] = 0
     return x
