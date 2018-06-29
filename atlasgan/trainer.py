@@ -30,7 +30,7 @@ class DCGANTrainer():
 
     def __init__(self, noise_dim=64, n_filters=16,
                  lr=0.0002, beta1=0.5, beta2=0.999,
-                 threshold=0, flip_rate=0,
+                 threshold=0, flip_rate=0, image_norm=4e6,
                  cuda=False, output_dir=None):
         """
         Construct the trainer.
@@ -39,7 +39,8 @@ class DCGANTrainer():
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config = dict(noise_dim=noise_dim, n_filters=n_filters,
                            lr=lr, beta1=beta1, beta2=beta2,
-                           threshold=threshold, flip_rate=flip_rate)
+                           threshold=threshold, flip_rate=flip_rate,
+                           image_norm=image_norm)
         self.cuda = cuda
         self.output_dir = output_dir
         self.summaries = {}

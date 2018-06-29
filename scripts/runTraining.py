@@ -71,7 +71,7 @@ def main():
     # Instantiate the trainer
     trainer = DCGANTrainer(noise_dim=args.noise_dim, n_filters=args.n_filters,
                            lr=args.lr, beta1=args.beta1, flip_rate=args.flip_labels,
-                           threshold=500./args.image_norm,
+                           threshold=500./args.image_norm, image_norm=args.image_norm,
                            output_dir=args.output_dir, cuda=args.cuda)
 
     # Run the training
