@@ -8,9 +8,13 @@ import scipy.stats
 
 def ks_metric(x, y):
     """Negative log of the KS test p-value"""
-    pval = scipy.stats.ks_2samp(x, y).pvalue
-    # Clip the p-value to avoid log(0)
     min_pval = np.exp(-700)
+    # If either array empty, we will get errors. So we use minimum p-value
+    if len(x) == 0 or len(y) == 0:
+        pval = min_pval
+    else:
+        pval = scipy.stats.ks_2samp(x, y).pvalue
+    # Clip the p-value to avoid log(0)
     if pval < min_pval: pval = min_pval
     return -np.log(pval)
 
