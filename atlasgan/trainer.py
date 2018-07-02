@@ -20,56 +20,20 @@ from torch.autograd import Variable
 from . import gan
 from .dataset import generate_noise
 
-class DCGANTrainer():
+class BaseTrainer():
     """
-    A trainer for the ATLAS DCGAN model.
+    Base class for our HEP GAN trainers.
 
-    Implements the training logic, tracks state and metrics,
-    and impelemnts logging and checkpointing.
+    This implements the common training logic,
+    logging of summaries, and checkpoints.
     """
 
-    def __init__(self, noise_dim=64, n_filters=16,
-                 lr=0.0002, beta1=0.5, beta2=0.999,
-                 threshold=0, flip_rate=0, image_norm=4e6,
-                 cuda=False, output_dir=None):
-        """
-        Construct the trainer.
-        This builds the model, optimizers, etc.
-        """
+    def __init__(self, output_dir=None, cuda=False):
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.config = dict(noise_dim=noise_dim, n_filters=n_filters,
-                           lr=lr, beta1=beta1, beta2=beta2,
-                           threshold=threshold, flip_rate=flip_rate,
-                           image_norm=image_norm)
+        self.config = {}
         self.cuda = cuda
         self.output_dir = output_dir
         self.summaries = {}
-
-        # Instantiate the model
-        self.noise_dim = noise_dim
-        self.generator = gan.Generator(noise_dim=noise_dim,
-                                       n_filters=n_filters,
-                                       threshold=threshold)
-        self.discriminator = gan.Discriminator(n_filters=n_filters)
-        self.loss_func = torch.nn.BCELoss()
-        self.g_optimizer = torch.optim.Adam(self.generator.parameters(),
-                                            lr=lr, betas=(beta1, beta2))
-        self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(),
-                                            lr=lr, betas=(beta1, beta2))
-        self.logger.info(
-            'Generator module: \n%s\nParameters: %i' %
-            (self.generator, sum(p.numel()
-             for p in self.generator.parameters()))
-        )
-        self.logger.info(
-            'Discriminator module: \n%s\nParameters: %i' %
-            (self.discriminator, sum(p.numel()
-             for p in self.discriminator.parameters()))
-        )
-
-        # Write the configuration right away
-        if self.output_dir is not None:
-            self.write_config()
 
     def to_device(self, x):
         """Copy object to device"""
@@ -111,6 +75,79 @@ class DCGANTrainer():
                         discriminator=discriminator.state_dict()),
                    os.path.join(checkpoint_dir, checkpoint_file))
 
+    def train(self, data_loader, n_epochs, n_save):
+        """Run the model training"""
+        # Offload to GPU if configured
+        self.discriminator = self.to_device(self.discriminator)
+        self.generator = self.to_device(self.generator)
+
+        # Loop over epochs
+        for i in range(n_epochs):
+            self.logger.info('Epoch %i' % i)
+            # Prepare summary information
+            summary = dict(epoch=i)
+            # Train on this epoch
+            summary.update(self.train_epoch(data_loader, n_save))
+            # Save summary information
+            self.save_summary(summary)
+            # Model checkpointing
+            self.write_checkpoint(checkpoint_id=i,
+                                  generator=self.generator,
+                                  discriminator=self.discriminator)
+
+        self.logger.info('Finished training')
+
+        # Save the combined summary information
+        if self.output_dir is not None:
+            self.write_summaries()
+
+class DCGANTrainer(BaseTrainer):
+    """
+    A trainer for the ATLAS DCGAN model.
+
+    Implements the training logic, tracks state and metrics,
+    and impelemnts logging and checkpointing.
+    """
+
+    def __init__(self, noise_dim=64, n_filters=16,
+                 lr=0.0002, beta1=0.5, beta2=0.999,
+                 threshold=0, flip_rate=0, image_norm=4e6,
+                 cuda=False, output_dir=None, **kwargs):
+        """
+        Construct the trainer.
+        This builds the model, optimizers, etc.
+        """
+        super(DCGANTrainer, self).__init__(output_dir=output_dir, cuda=cuda, **kwargs)
+        self.config = dict(noise_dim=noise_dim, n_filters=n_filters,
+                           lr=lr, beta1=beta1, beta2=beta2,
+                           threshold=threshold, flip_rate=flip_rate,
+                           image_norm=image_norm)
+
+        # Instantiate the model
+        self.generator = gan.Generator(noise_dim=noise_dim,
+                                       n_filters=n_filters,
+                                       threshold=threshold)
+        self.discriminator = gan.Discriminator(n_filters=n_filters)
+        self.loss_func = torch.nn.BCELoss()
+        self.g_optimizer = torch.optim.Adam(self.generator.parameters(),
+                                            lr=lr, betas=(beta1, beta2))
+        self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(),
+                                            lr=lr, betas=(beta1, beta2))
+        self.logger.info(
+            'Generator module: \n%s\nParameters: %i' %
+            (self.generator, sum(p.numel()
+             for p in self.generator.parameters()))
+        )
+        self.logger.info(
+            'Discriminator module: \n%s\nParameters: %i' %
+            (self.discriminator, sum(p.numel()
+             for p in self.discriminator.parameters()))
+        )
+
+        # Write the configuration right away
+        if self.output_dir is not None:
+            self.write_config()
+
     def train_epoch(self, data_loader, n_save):
         """Train for one epoch"""
         self.generator.train()
@@ -147,7 +184,8 @@ class DCGANTrainer():
             d_loss_real = self.loss_func(d_output_real, d_labels_real)
             d_loss_real.backward()
             # Train discriminator with fake generated samples
-            batch_noise = self.make_var(generate_noise(batch_size, self.noise_dim))
+            noise_dim = self.config['noise_dim']
+            batch_noise = self.make_var(generate_noise(batch_size, noise_dim))
             batch_fake = self.generator(batch_noise)
             d_output_fake = self.discriminator(batch_fake.detach())
             d_loss_fake = self.loss_func(d_output_fake, d_labels_fake)
@@ -178,40 +216,10 @@ class DCGANTrainer():
                                     n_save, replace=False)
         summary['gen_samples'] = batch_fake.cpu().data.numpy()[rand_idx][:, 0]
 
+        # Print some some info for the epoch
+        self.logger.info('Avg discriminator real output: %.4f' % summary['d_train_output_real'])
+        self.logger.info('Avg discriminator fake output: %.4f' % summary['d_train_output_fake'])
+        self.logger.info('Avg discriminator loss: %.4f' % summary['d_train_loss'])
+        self.logger.info('Avg generator loss: %.4f' % summary['g_train_loss'])
+
         return summary
-
-    def train(self, data_loader, n_epochs, n_save):
-        """Run the model training"""
-        # Offload to GPU
-        self.discriminator = self.to_device(self.discriminator)
-        self.generator = self.to_device(self.generator)
-
-        # Loop over epochs
-        for i in range(n_epochs):
-            self.logger.info('Epoch %i' % i)
-
-            # Prepare summary information
-            summary = dict(epoch=i)
-
-            # Train on this epoch
-            summary.update(self.train_epoch(data_loader, n_save))
-            self.logger.info('Avg discriminator real output: %.4f' % summary['d_train_output_real'])
-            self.logger.info('Avg discriminator fake output: %.4f' % summary['d_train_output_fake'])
-            self.logger.info('Avg discriminator loss: %.4f' % summary['d_train_loss'])
-            self.logger.info('Avg generator loss: %.4f' % summary['g_train_loss'])
-
-            # Save summary information
-            self.save_summary(summary)
-
-            # Model checkpointing
-            self.write_checkpoint(checkpoint_id=i,
-                                  generator=self.generator,
-                                  discriminator=self.discriminator)
-
-        self.logger.info('Finished training')
-
-        # Save the combined summary information
-        if self.output_dir is not None:
-            self.write_summaries()
-            #self.logger.info('Saving summaries to %s' % self.output_dir)
-            #np.savez(os.path.join(self.output_dir, 'summaries.npz'), **self.summaries)
