@@ -18,88 +18,8 @@ from torch.autograd import Variable
 
 # Locals
 from . import gan
+from .base_trainer import BaseTrainer
 from .dataset import generate_noise
-
-class BaseTrainer():
-    """
-    Base class for our HEP GAN trainers.
-
-    This implements the common training logic,
-    logging of summaries, and checkpoints.
-    """
-
-    def __init__(self, output_dir=None, cuda=False):
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.config = {}
-        self.cuda = cuda
-        self.output_dir = output_dir
-        self.summaries = {}
-
-    def to_device(self, x):
-        """Copy object to device"""
-        return x.cuda() if self.cuda else x
-
-    def make_var(self, x):
-        """Wrap in pytorch Variable and move to device"""
-        return self.to_device(Variable(x))
-
-    def save_summary(self, summaries):
-        """Save summary information"""
-        for (key, val) in summaries.items():
-            summary_vals = self.summaries.get(key, [])
-            self.summaries[key] = summary_vals + [val]
-
-    def write_summaries(self):
-        assert self.output_dir is not None
-        summary_file = os.path.join(self.output_dir, 'summaries.npz')
-        self.logger.info('Saving summaries to %s' % summary_file)
-        np.savez(summary_file, **self.summaries)
-
-    def write_config(self):
-        """Write the trainer config to the output directory"""
-        assert self.output_dir is not None
-        config_file = os.path.join(self.output_dir, 'config.json')
-        self.logger.info('Saving config to %s' % config_file)
-        with open(config_file, 'w') as f:
-            json.dump(self.config, f)
-
-    # TODO: write resume_checkpoint method (when actually needed)
-    def write_checkpoint(self, checkpoint_id, generator, discriminator):
-        """Write a checkpoint for the model"""
-        assert self.output_dir is not None
-        checkpoint_dir = os.path.join(self.output_dir, 'checkpoints')
-        checkpoint_file = 'model_checkpoint_%03i.pth.tar' % checkpoint_id
-        if not os.path.exists(checkpoint_dir):
-            os.mkdir(checkpoint_dir)
-        torch.save(dict(generator=generator.state_dict(),
-                        discriminator=discriminator.state_dict()),
-                   os.path.join(checkpoint_dir, checkpoint_file))
-
-    def train(self, data_loader, n_epochs, n_save):
-        """Run the model training"""
-        # Offload to GPU if configured
-        self.discriminator = self.to_device(self.discriminator)
-        self.generator = self.to_device(self.generator)
-
-        # Loop over epochs
-        for i in range(n_epochs):
-            self.logger.info('Epoch %i' % i)
-            # Prepare summary information
-            summary = dict(epoch=i)
-            # Train on this epoch
-            summary.update(self.train_epoch(data_loader, n_save))
-            # Save summary information
-            self.save_summary(summary)
-            # Model checkpointing
-            self.write_checkpoint(checkpoint_id=i,
-                                  generator=self.generator,
-                                  discriminator=self.discriminator)
-
-        self.logger.info('Finished training')
-
-        # Save the combined summary information
-        if self.output_dir is not None:
-            self.write_summaries()
 
 class DCGANTrainer(BaseTrainer):
     """
@@ -117,36 +37,27 @@ class DCGANTrainer(BaseTrainer):
         Construct the trainer.
         This builds the model, optimizers, etc.
         """
-        super(DCGANTrainer, self).__init__(output_dir=output_dir, cuda=cuda, **kwargs)
-        self.config = dict(noise_dim=noise_dim, n_filters=n_filters,
-                           lr=lr, beta1=beta1, beta2=beta2,
-                           threshold=threshold, flip_rate=flip_rate,
-                           image_norm=image_norm)
+        super(DCGANTrainer, self).__init__(
+            output_dir=output_dir, cuda=cuda,
+            config=dict(noise_dim=noise_dim, n_filters=n_filters,
+                        lr=lr, beta1=beta1, beta2=beta2,
+                        threshold=threshold, flip_rate=flip_rate,
+                        image_norm=image_norm),
+            **kwargs
+        )
 
-        # Instantiate the model
-        self.generator = gan.Generator(noise_dim=noise_dim,
-                                       n_filters=n_filters,
-                                       threshold=threshold)
-        self.discriminator = gan.Discriminator(n_filters=n_filters)
+    def build_model(self):
+        """Instantiate our model"""
+        self.generator = gan.Generator(noise_dim=self.config['noise_dim'],
+                                       n_filters=self.config['n_filters'],
+                                       threshold=self.config['threshold'])
+        self.discriminator = gan.Discriminator(n_filters=self.config['n_filters'])
         self.loss_func = torch.nn.BCELoss()
+        betas = (self.config['beta1'], self.config['beta2'])
         self.g_optimizer = torch.optim.Adam(self.generator.parameters(),
-                                            lr=lr, betas=(beta1, beta2))
+                                            lr=self.config['lr'], betas=betas)
         self.d_optimizer = torch.optim.Adam(self.discriminator.parameters(),
-                                            lr=lr, betas=(beta1, beta2))
-        self.logger.info(
-            'Generator module: \n%s\nParameters: %i' %
-            (self.generator, sum(p.numel()
-             for p in self.generator.parameters()))
-        )
-        self.logger.info(
-            'Discriminator module: \n%s\nParameters: %i' %
-            (self.discriminator, sum(p.numel()
-             for p in self.discriminator.parameters()))
-        )
-
-        # Write the configuration right away
-        if self.output_dir is not None:
-            self.write_config()
+                                            lr=self.config['lr'], betas=betas)
 
     def train_epoch(self, data_loader, n_save):
         """Train for one epoch"""

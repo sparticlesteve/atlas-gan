@@ -24,7 +24,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 # Local
 from atlasgan.dataset import RPVImages
-from atlasgan.trainer import DCGANTrainer
+from atlasgan.trainers import DCGANTrainer
 
 def parse_args():
     """Parse command line arguments."""
