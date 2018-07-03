@@ -19,7 +19,7 @@ from torch.autograd import Variable
 # Locals
 from . import gan
 from .base_trainer import BaseTrainer
-from .dataset import generate_noise
+from .datasets import generate_noise
 
 class DCGANTrainer(BaseTrainer):
     """

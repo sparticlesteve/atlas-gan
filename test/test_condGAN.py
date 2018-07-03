@@ -14,7 +14,7 @@ from torch.autograd import Variable
 
 # Locals
 from atlasgan import cgan
-from atlasgan.dataset import RPVImages, generate_noise
+from atlasgan.datasets import RPVImages, generate_noise
 
 # Load some data
 print('hello')

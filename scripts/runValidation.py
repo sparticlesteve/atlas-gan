@@ -23,7 +23,7 @@ import torch
 from torch.autograd import Variable
 
 # Locals
-from atlasgan.dataset import RPVImages, inverse_transform_data, generate_noise
+from atlasgan.datasets import RPVImages, inverse_transform_data, generate_noise
 from atlasgan.reco import compute_physics_variables
 from atlasgan.validate import compute_metrics
 from atlasgan import gan
