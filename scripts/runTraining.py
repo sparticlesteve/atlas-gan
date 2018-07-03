@@ -20,7 +20,7 @@ import logging
 import numpy as np
 import torch
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader
 
 # Local
 from atlasgan import datasets, trainers
@@ -29,7 +29,8 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('runTraining.py')
     add_arg = parser.add_argument
-    add_arg('--input-data', default='/data0/users/sfarrell/atlas_rpv_data/RPV10_1600_250_01.npz')
+    add_arg('--input-data', nargs='*',
+            default='/data0/users/sfarrell/atlas_rpv_data/RPV10_1600_250_01.npz')
     add_arg('--output-dir')
     add_arg('--model', choices=['dcgan', 'condgan'], default='dcgan')
     add_arg('--noise-dim', type=int, default=64, help='Size of the noise vector')
@@ -71,9 +72,10 @@ def main():
         TrainerType = trainers.DCGANTrainer
 
     # Load the data
-    dataset = DSType(args.input_data, n_samples=args.n_train, scale=args.image_norm)
-    data_loader = DataLoader(dataset, batch_size=args.batch_size)
-    logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
+    dataset = ConcatDataset([DSType(f, n_samples=args.n_train, scale=args.image_norm)
+                             for f in args.input_data])
+    data_loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+    logging.info('Loaded data with size: %s' % len(dataset))
 
     # Instantiate the trainer
     trainer = TrainerType(noise_dim=args.noise_dim, n_filters=args.n_filters,
