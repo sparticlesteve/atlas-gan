@@ -33,7 +33,7 @@ def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser('evalHPO.py')
     add_arg = parser.add_argument
-    add_arg('--input-data', default='/data0/users/sfarrell/atlas_rpv_data/RPV10_1600_250_01.npz')
+    add_arg('--input-data', default='/global/cscratch1/sd/sfarrell/atlas_gan/data_split/RPV10_1400_850_01_valid.npz')
     add_arg('--train-dir', required=True, help='Training results directory to analyze')
     add_arg('--n-valid', type=int, default=4096, help='Number of validation samples')
     add_arg('--image-norm', type=float, default=4e6,
