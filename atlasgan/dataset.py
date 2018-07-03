@@ -27,8 +27,7 @@ def generate_noise(n_samples, noise_dim):
 # TODO: add the theory mass parameters for conditioning
 class RPVImages(Dataset):
     """Dataset wrapping RPV image tensors."""
-    def __init__(self, input_file, n_samples=None, scale=None,
-                 from_back=False):
+    def __init__(self, input_file, n_samples=None, scale=None):
         # Load the data
         with np.load(input_file) as f:
             fdata = f['hist']
