@@ -26,7 +26,7 @@ class CondGANTrainer(BaseTrainer):
     A trainer for the ATLAS conditional DCGAN model.
     """
 
-    def __init__(self, noise_dim=64, n_filters=16, cond_dim=1,
+    def __init__(self, noise_dim=64, n_filters=16, cond_dim=2,
                  lr=0.0002, beta1=0.5, beta2=0.999,
                  threshold=0, flip_rate=0, image_norm=4e6,
                  cuda=False, output_dir=None, **kwargs):

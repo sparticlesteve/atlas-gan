@@ -23,8 +23,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 # Local
-from atlasgan.dataset import RPVImages
-from atlasgan.trainers import DCGANTrainer
+from atlasgan import datasets, trainers
 
 def parse_args():
     """Parse command line arguments."""
@@ -32,6 +31,7 @@ def parse_args():
     add_arg = parser.add_argument
     add_arg('--input-data', default='/data0/users/sfarrell/atlas_rpv_data/RPV10_1600_250_01.npz')
     add_arg('--output-dir')
+    add_arg('--model', choices=['dcgan', 'condgan'], default='dcgan')
     add_arg('--noise-dim', type=int, default=64, help='Size of the noise vector')
     add_arg('--n-filters', type=int, default=16,
             help='Number of initial filters in discriminator')
@@ -43,7 +43,7 @@ def parse_args():
     add_arg('--n-epochs', type=int, default=1)
     add_arg('--n-save', type=int, default=8,
             help='Number of example generated images to save to output-dir after every epoch.')
-    add_arg('--image-norm', type=float, default=4e6, #6072947
+    add_arg('--image-norm', type=float, default=4e6,
             help='Normalization factor for the image data')
     add_arg('--batch-size', type=int, default=64)
     add_arg('--show-config', action='store_true')
@@ -63,16 +63,23 @@ def main():
     if args.show_config:
         logging.info('Command line config: %s' % args)
 
+    if args.model == 'condgan':
+        DSType = datasets.RPVCondImages
+        TrainerType = trainers.CondGANTrainer
+    else:
+        DSType = datasets.RPVImages
+        TrainerType = trainers.DCGANTrainer
+
     # Load the data
-    dataset = RPVImages(args.input_data, n_samples=args.n_train, scale=args.image_norm)
+    dataset = DSType(args.input_data, n_samples=args.n_train, scale=args.image_norm)
     data_loader = DataLoader(dataset, batch_size=args.batch_size)
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
     # Instantiate the trainer
-    trainer = DCGANTrainer(noise_dim=args.noise_dim, n_filters=args.n_filters,
-                           lr=args.lr, beta1=args.beta1, flip_rate=args.flip_labels,
-                           threshold=500./args.image_norm, image_norm=args.image_norm,
-                           output_dir=args.output_dir, cuda=args.cuda)
+    trainer = TrainerType(noise_dim=args.noise_dim, n_filters=args.n_filters,
+                          lr=args.lr, beta1=args.beta1, flip_rate=args.flip_labels,
+                          threshold=500./args.image_norm, image_norm=args.image_norm,
+                          output_dir=args.output_dir, cuda=args.cuda)
 
     # Run the training
     trainer.train(data_loader, n_epochs=args.n_epochs, n_save=args.n_save)
