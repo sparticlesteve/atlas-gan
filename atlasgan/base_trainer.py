@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 
-class BaseTrainer():
+class BaseTrainer(object):
     """
     Base class for our HEP GAN trainers.
 
