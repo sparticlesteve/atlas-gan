@@ -20,7 +20,7 @@ import logging
 import numpy as np
 import torch
 from torch.autograd import Variable
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import DataLoader
 
 # Local
 from atlasgan.dataset import RPVImages
