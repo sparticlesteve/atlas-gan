@@ -27,16 +27,16 @@ def generate_noise(n_samples, noise_dim):
 
 class RPVImages(Dataset):
     """Dataset wrapping RPV image tensors."""
-    def __init__(self, input_file, n_samples=None, scale=None):
+    def __init__(self, input_file, n_samples=None, scale=4e6):
         # Load the data
         with np.load(input_file) as f:
             fdata = f['hist']
-            if n_samples is not None and n_samples > 0:
-                self.data = torch.from_numpy(fdata[:n_samples, None].astype(np.float32))
-            else:
-                self.data = torch.from_numpy(fdata[:, None]).astype(np.float32)
-        if scale is not None:
-            self.data = transform_data(self.data, scale)
+            if n_samples is not None:
+                fdata = fdata[:n_samples]
+            # Add channels dimension and convert to PyTorch float32
+            data = torch.from_numpy(fdata[:, None].astype(np.float32))
+        # Apply standard data transformation
+        self.data = transform_data(data, scale)
     
     def __getitem__(self, index):
         return self.data[index]
@@ -47,7 +47,7 @@ class RPVImages(Dataset):
 # TODO: add control to set number of mass params.
 class RPVCondImages(Dataset):
     """Dataset wrapping RPV image tensors and theory mass parameters"""
-    def __init__(self, input_file, n_samples=None, image_scale=4e6):
+    def __init__(self, input_file, n_samples=None, scale=4e6):
         # Load the data
         with np.load(input_file) as f:
             fdata = f['hist']
@@ -55,8 +55,8 @@ class RPVCondImages(Dataset):
                 fdata = fdata[:n_samples]
             # Add channels dimension and convert to PyTorch float32
             data = torch.from_numpy(fdata[:, None].astype(np.float32))
-            # Apply standard data transformation
-            self.data = transform_data(data, image_scale)
+        # Apply standard data transformation
+        self.data = transform_data(data, scale)
         # Infer the mass parameters from the file name
         _, mglu, mneu = os.path.basename(input_file).split('_')[:3]
         # Fixed transformations
