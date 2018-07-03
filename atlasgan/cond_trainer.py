@@ -88,7 +88,7 @@ class CondGANTrainer(BaseTrainer):
             self.discriminator.zero_grad()
             batch_real = self.make_var(batch_data)
             batch_real_cond = self.make_var(batch_cond)
-            d_output_real = self.discriminator(batch_real, batch_cond)
+            d_output_real = self.discriminator(batch_real, batch_real_cond)
             d_loss_real = self.loss_func(d_output_real, d_labels_real)
             d_loss_real.backward()
             # Train discriminator with fake generated samples
@@ -96,7 +96,7 @@ class CondGANTrainer(BaseTrainer):
             batch_noise = self.make_var(generate_noise(batch_size, noise_dim))
             # FIXME: should I randomly sample new conditionals for fakes?
             batch_fake_cond = self.make_var(batch_cond)
-            batch_fake = self.generator(batch_noise, batch_cond)
+            batch_fake = self.generator(batch_noise, batch_fake_cond)
             d_output_fake = self.discriminator(batch_fake.detach(),
                                                batch_fake_cond.detach())
             d_loss_fake = self.loss_func(d_output_fake, d_labels_fake)
