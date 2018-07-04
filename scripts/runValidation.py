@@ -103,9 +103,8 @@ def main():
     config = load_model_config(args.train_dir)
 
     # Load the data
-    # FIXME: Deterministically define both validation and test set
     dataset = RPVImages(args.input_data, n_samples=args.n_valid,
-                        scale=args.image_norm, from_back=True)
+                        scale=args.image_norm)
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
     # Prepare and reconstruct the real images
