@@ -42,6 +42,8 @@ def parse_args():
     add_arg('--n-workers', type=int, default=1, help='Number of process workers')
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
+    # FIXME: temporary arg
+    add_arg('--model-type', help='override model type config')
     return parser.parse_args()
 
 def write_metrics(output_dir, metrics, output_file_name):
@@ -104,6 +106,9 @@ def main():
 
     # Load the model config
     config = load_model_config(args.train_dir)
+    # FIXME: temporary workaround for old config
+    if args.model_type is not None:
+        config['model_type'] = args.model_type
 
     # Load the data
     dataset = RPVImages(args.input_data, n_samples=args.n_valid,
