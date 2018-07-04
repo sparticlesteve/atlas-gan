@@ -35,6 +35,7 @@ def parse_args():
     add_arg = parser.add_argument
     add_arg('--input-data', default='/global/cscratch1/sd/sfarrell/atlas_gan/data_split/RPV10_1400_850_01_valid.npz')
     add_arg('--train-dir', required=True, help='Training results directory to analyze')
+    add_arg('--output-file-name', default='validation_metrics.npz')
     add_arg('--n-valid', type=int, default=4096, help='Number of validation samples')
     add_arg('--image-norm', type=float, default=4e6,
             help='Normalization factor for the image data')
@@ -43,8 +44,8 @@ def parse_args():
     add_arg('--interactive', action='store_true')
     return parser.parse_args()
 
-def write_metrics(output_dir, metrics):
-    metrics_file = os.path.join(output_dir, 'validation_metrics.npz')
+def write_metrics(output_dir, metrics, output_file_name):
+    metrics_file = os.path.join(output_dir, output_file_name)
     logging.info('Writing metrics to %s' % metrics_file)
     np.savez(metrics_file, **metrics)
 
@@ -133,7 +134,7 @@ def main():
     metrics = {}
     for key in metrics_list[0].keys():
         metrics[key] = [m[key] for m in metrics_list]
-    write_metrics(args.train_dir, metrics)
+    write_metrics(args.train_dir, metrics, args.output_file_name)
 
     # Drop to IPython interactive shell
     if args.interactive:
