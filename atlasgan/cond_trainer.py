@@ -36,7 +36,7 @@ class CondGANTrainer(BaseTrainer):
             config=dict(noise_dim=noise_dim, n_filters=n_filters, cond_dim=cond_dim,
                         lr=lr, beta1=beta1, beta2=beta2,
                         threshold=threshold, flip_rate=flip_rate,
-                        image_norm=image_norm),
+                        image_norm=image_norm, model_type='condgan'),
             **kwargs
         )
 
