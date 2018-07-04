@@ -26,7 +26,7 @@ from torch.autograd import Variable
 from atlasgan.datasets import RPVImages, inverse_transform_data, generate_noise
 from atlasgan.reco import compute_physics_variables
 from atlasgan.validate import compute_metrics
-from atlasgan import gan
+from atlasgan import gan, cgan
 
 
 def parse_args():
@@ -61,10 +61,13 @@ def load_model(train_dir, checkpoint_id, model_config):
     )
     # Load the checkpoint and map onto CPU
     checkpoint = torch.load(checkpoint_file, map_location=lambda storage, loc: storage)
-    generator = gan.Generator(model_config['noise_dim'],
-                              threshold=model_config['threshold'],
-                              n_filters=model_config['n_filters'])
-    discriminator = gan.Discriminator(n_filters=model_config['n_filters'])
+    # Update this logic as necessary
+    model_type = model_config.get('model_type', 'dcgan')
+    gmod = gan if model_type == 'dcgan' else cgan
+    generator = gmod.Generator(model_config['noise_dim'],
+                               threshold=model_config['threshold'],
+                               n_filters=model_config['n_filters'])
+    discriminator = gmod.Discriminator(n_filters=model_config['n_filters'])
     generator.load_state_dict(checkpoint['generator'])
     discriminator.load_state_dict(checkpoint['discriminator'])
     # Ensure the model is in eval mode
