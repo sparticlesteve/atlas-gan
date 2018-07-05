@@ -23,7 +23,8 @@ import torch
 from torch.autograd import Variable
 
 # Locals
-from atlasgan.datasets import RPVImages, inverse_transform_data, generate_noise
+from atlasgan.datasets import (RPVImages, RPVCondImages,
+                               inverse_transform_data, generate_noise)
 from atlasgan.reco import compute_physics_variables
 from atlasgan.validate import compute_metrics
 from atlasgan import gan, cgan
@@ -65,23 +66,33 @@ def load_model(train_dir, checkpoint_id, model_config):
     checkpoint = torch.load(checkpoint_file, map_location=lambda storage, loc: storage)
     # Update this logic as necessary
     model_type = model_config.get('model_type', 'dcgan')
-    gmod = gan if model_type == 'dcgan' else cgan
-    generator = gmod.Generator(model_config['noise_dim'],
-                               threshold=model_config['threshold'],
-                               n_filters=model_config['n_filters'])
-    discriminator = gmod.Discriminator(n_filters=model_config['n_filters'])
+    if model_type == 'condgan':
+        generator = cgan.Generator(noise_dim=model_config['noise_dim'],
+                                   cond_dim=model_config['cond_dim'],
+                                   n_filters=model_config['n_filters'],
+                                   threshold=model_config['threshold'])
+        discriminator = cgan.Discriminator(n_filters=model_config['n_filters'],
+                                           cond_dim=model_config['cond_dim'])
+    else:
+        generator = gan.Generator(model_config['noise_dim'],
+                                  threshold=model_config['threshold'],
+                                  n_filters=model_config['n_filters'])
+        discriminator = gan.Discriminator(n_filters=model_config['n_filters'])
     generator.load_state_dict(checkpoint['generator'])
     discriminator.load_state_dict(checkpoint['discriminator'])
     # Ensure the model is in eval mode
     return generator.eval(), discriminator.eval()
 
 def compute_epoch_metrics(epoch, train_dir, model_config,
-                          valid_noise, scale, real_vars):
+                          valid_noise, scale, real_vars, valid_cond=None):
     logging.info('Epoch %i: loading model' % epoch)
     generator, discriminator = load_model(train_dir, epoch, model_config)
     # Generate images
     logging.info('Epoch %i: Generating images' % epoch)
-    valid_fake = generator(valid_noise)
+    if valid_cond is not None:
+        valid_fake = generator(valid_noise, valid_cond)
+    else:
+        valid_fake = generator(valid_noise)
     fake_images = inverse_transform_data(valid_fake.data.numpy().squeeze(1), scale)
     # Compute reconstructed physics variables from fake images
     logging.info('Epoch %i: Computing physics variables' % epoch)
@@ -111,8 +122,9 @@ def main():
         config['model_type'] = args.model_type
 
     # Load the data
-    dataset = RPVImages(args.input_data, n_samples=args.n_valid,
-                        scale=args.image_norm)
+    DSType = RPVCondImages if config['model_type'] == 'condgan' else RPVImages
+    dataset = DSType(args.input_data, n_samples=args.n_valid,
+                     scale=args.image_norm)
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
 
     # Prepare and reconstruct the real images
@@ -120,6 +132,10 @@ def main():
     valid_real = Variable(dataset.data, volatile=True)
     # Random noise; input for generator
     valid_noise = Variable(generate_noise(args.n_valid, config['noise_dim']), volatile=True)
+    if config['model_type'] == 'condgan':
+        valid_cond = Variable(dataset.cond.repeat(args.n_valid, 1))
+    else:
+        valid_cond = None
     # Get the numpy format of real images
     scale = args.image_norm
     real_images = inverse_transform_data(dataset.data.numpy().squeeze(1), scale)
@@ -134,7 +150,7 @@ def main():
     pool = mp.Pool(processes=args.n_workers)
     func = partial(compute_epoch_metrics, train_dir=args.train_dir,
                    model_config=config, valid_noise=valid_noise,
-                   real_vars=real_vars, scale=scale)
+                   real_vars=real_vars, scale=scale, valid_cond=valid_cond)
     metrics_list = pool.map(func, epochs)
 
     # Convert to dict of metrics
