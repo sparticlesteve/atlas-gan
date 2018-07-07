@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-evalHPO.py - a script for evaluating HP training runs.
+runValidation.py - a script for evaluating HP training runs.
 """
 
 # Compatibility
@@ -31,7 +31,7 @@ from atlasgan import gan
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser('evalHPO.py')
+    parser = argparse.ArgumentParser('runValidation.py')
     add_arg = parser.add_argument
     add_arg('--input-data', default='/global/cscratch1/sd/sfarrell/atlas_gan/data_split/RPV10_1400_850_01_valid.npz')
     add_arg('--train-dir', required=True, help='Training results directory to analyze')
@@ -102,7 +102,6 @@ def main():
     config = load_model_config(args.train_dir)
 
     # Load the data
-    # FIXME: Deterministically define both validation and test set
     dataset = RPVImages(args.input_data, n_samples=args.n_valid,
                         scale=args.image_norm, from_back=True)
     logging.info('Loaded data with shape: %s' % str(dataset.data.size()))
