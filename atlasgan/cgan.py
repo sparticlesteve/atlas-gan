@@ -46,6 +46,7 @@ class Generator(nn.Module):
     def forward(self, noise, cond):
         """Computes the forward pass of the generator network"""
         # Concatenate the condition features onto the noise vector
+        # FIXME: move this up into trainer and remove this class
         inputs = torch.cat([noise, cond[:, :, None, None]], dim=1)
         return self.network(inputs)
 
@@ -60,9 +61,9 @@ class Discriminator(nn.Module):
         ndf = n_filters
 
         # Convolutional layers
-        self.cnn = nn.Sequential(
+        self.network = nn.Sequential(
             # input is (nc) x 64 x 64
-            nn.Conv2d(input_channels, ndf, 4, 2, 1, bias=False),
+            nn.Conv2d(input_channels + cond_dim, ndf, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf) x 32 x 32
             nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
@@ -77,23 +78,14 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            #nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
-            #nn.Sigmoid()
-        )
-
-        # Fully connected conditioned classifier network.
-        # For now implementing as a single layer.
-        self.fc = nn.Sequential(
-            # state size here is (ndf*8) x 4 x 4 plus condition
-            nn.Linear(ndf*8*4*4 + cond_dim, 1, bias=False),
+            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
             nn.Sigmoid()
         )
 
     def forward(self, inputs, cond):
-        # CNN layers
-        h = self.cnn(inputs)
-        # Flatten the features
-        h = h.view(h.size(0), -1)
-        # Concatenate the condition features
-        h = torch.cat([h, cond], dim=1)
-        return self.fc(h).squeeze()
+        # Stack the condition onto the image as channels.
+        # FIXME: move this logic up into trainer and remove this class.
+        cond_channels = cond[:, :, None, None].expand(cond.size(0), cond.size(1),
+                                                      inputs.size(2), inputs.size(3))
+        cond_inputs = torch.cat([inputs, cond_channels], dim=1)
+        return self.network(cond_inputs).squeeze()
