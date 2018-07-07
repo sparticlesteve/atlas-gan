@@ -14,7 +14,6 @@ import os
 import argparse
 import logging
 import json
-import multiprocessing as mp
 from functools import partial
 
 # Externals
@@ -122,11 +121,10 @@ def main():
     epochs = train_summaries['epoch']
 
     # Compute metrics for all model checkpoints
-    pool = mp.Pool(processes=args.n_workers)
     func = partial(compute_epoch_metrics, train_dir=args.train_dir,
                    model_config=config, valid_noise=valid_noise,
                    real_vars=real_vars, scale=scale)
-    metrics_list = pool.map(func, epochs)
+    metrics_list = [func(epoch) for epoch in epochs]
 
     # Convert to dict of metrics
     metrics = {}
